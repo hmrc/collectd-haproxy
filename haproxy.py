@@ -380,6 +380,17 @@ def _str_to_bool(val):
 
     return False
 
+def submit_metrics(metric_datapoint):
+    datapoint = collectd.Values()
+    datapoint.type = metric_datapoint['type']
+    datapoint.type_instance = metric_datapoint['type_instance']
+    datapoint.plugin = metric_datapoint['plugin']
+    if 'plugin_instance' in metric_datapoint.keys():
+        datapoint.plugin_instance = metric_datapoint['plugin_instance']
+    datapoint.values = metric_datapoint['values']
+    collectd.debug(pprint.pformat(metric_datapoint))
+    datapoint.dispatch()
+
 
 def collect_metrics(module_config):
     collectd.debug('beginning collect_metrics')
@@ -415,22 +426,16 @@ def collect_metrics(module_config):
             continue
 
         # create datapoint and dispatch
-        datapoint = collectd.Values()
-        datapoint.type = val_type
-        datapoint.type_instance = translated_metric_name
-        datapoint.plugin = PLUGIN_NAME
+        metric_datapoint = {
+                    'plugin': PLUGIN_NAME,
+                    'type': val_type,
+                    'type_instance': translated_metric_name,
+                    'values': (metric_value,)
+                }
         dimensions.update(module_config['custom_dimensions'])
         if len(dimensions) > 0:
-            datapoint.plugin_instance = _format_dimensions(dimensions)
-        datapoint.values = (metric_value,)
-        pprint_dict = {
-                    'plugin': datapoint.plugin,
-                    'plugin_instance': datapoint.plugin_instance,
-                    'type': datapoint.type,
-                    'type_instance': datapoint.type_instance,
-                    'values': datapoint.values
-                }
-        collectd.debug(pprint.pformat(pprint_dict))
-        datapoint.dispatch()
+            metric_datapoint['plugin_instance'] = _format_dimensions(dimensions)
+        collectd.debug(pprint.pformat(metric_datapoint))
+        submit_metrics(metric_datapoint)
 
 collectd.register_config(config)
