@@ -228,50 +228,23 @@ def get_stats(module_config):
 
     # proxy specific stats
     for statdict in server_stats:
-        dimensions = _build_dimension_dict(statdict)
-        if not (('svname' in statdict and statdict['svname'].lower() in module_config['proxy_monitors']) or
-                ('pxname' in statdict and statdict['pxname'].lower() in module_config['proxy_monitors'])):
+        if not should_capture_metric(statdict, module_config):
             continue
         for metricname, val in statdict.items():
             try:
-                stats.append((metricname, int(val), dimensions))
+                stats.append((metricname, int(val), statdict))
             except (TypeError, ValueError):
                 pass
 
     return stats
 
+def should_capture_metric(statdict, module_config):
+    return (('svname' in statdict and statdict['svname'].lower() in module_config['proxy_monitors']) or
+            ('pxname' in statdict and statdict['pxname'].lower() in module_config['proxy_monitors']) or
+            is_backend_server_metric(statdict) and 'backend' in module_config['proxy_monitors'])
 
-def _build_dimension_dict(statdict):
-    """
-    Builds dimensions dict to send back with metrics with readable metric names
-    Args:
-    statdict dictionary of metrics from HAProxy to be filtered for dimensions
-    """
-
-    dimensions = {}
-
-    for key in DIMENSIONS_LIST:
-        if key in statdict and key == 'pxname':
-            dimensions['proxy_name'] = statdict['pxname']
-        elif key in statdict and key == 'svname':
-            dimensions['service_name'] = statdict['svname']
-        elif key in statdict and key == 'pid':
-            dimensions['process_id'] = statdict['pid']
-        elif key in statdict and key == 'sid':
-            dimensions['server_id'] = statdict['sid']
-        elif key in statdict and key == 'iid':
-            dimensions['unique_proxy_id'] = statdict['iid']
-        elif key in statdict and key == 'type':
-            dimensions['type'] = _get_proxy_type(statdict['type'])
-        elif key in statdict and key == 'addr':
-            dimensions['address'] = statdict['addr']
-        elif key in statdict and key == 'algo':
-            dimensions['algorithm'] = statdict['algo']
-        elif key in statdict:
-            dimensions[key] = statdict[key]
-
-    return dimensions
-
+def is_backend_server_metric(statdict):
+    return 'type' in statdict and _get_proxy_type(statdict['type']) == 'server'
 
 def config(config_values):
     """
@@ -336,21 +309,11 @@ def config(config_values):
                            **interval_kwarg)
 
 
-def _format_dimensions(dimensions):
-    """
-    Formats a dictionary of dimensions to a format that enables them to be
-    specified as key, value pairs in plugin_instance to signalfx. E.g.
-    >>> dimensions = {'a': 'foo', 'b': 'bar'}
-    >>> _format_dimensions(dimensions)
-    "[a=foo,b=bar]"
-    Args:
-    dimensions (dict): Mapping of {dimension_name: value, ...}
-    Returns:
-    str: Comma-separated list of dimensions
-    """
-
-    dim_pairs = ["%s=%s" % (k, v) for k, v in dimensions.iteritems()]
-    return "[%s]" % (",".join(dim_pairs))
+def _format_plugin_instance(dimensions):
+    if is_backend_server_metric(dimensions):
+        return "{0}.{1}.{2}".format("backend", dimensions['pxname'].lower(), dimensions['svname'])
+    else:
+        return "{0}.{1}".format(dimensions['svname'].lower(), dimensions['pxname'])
 
 
 def _get_proxy_type(type_id):
@@ -425,16 +388,14 @@ def collect_metrics(module_config):
             collectd.debug("excluding metric %s" % translated_metric_name)
             continue
 
-        # create datapoint and dispatch
         metric_datapoint = {
                     'plugin': PLUGIN_NAME,
                     'type': val_type,
                     'type_instance': translated_metric_name,
                     'values': (metric_value,)
                 }
-        dimensions.update(module_config['custom_dimensions'])
         if len(dimensions) > 0:
-            metric_datapoint['plugin_instance'] = _format_dimensions(dimensions)
+            metric_datapoint['plugin_instance'] = _format_plugin_instance(dimensions)
         collectd.debug(pprint.pformat(metric_datapoint))
         submit_metrics(metric_datapoint)
 
