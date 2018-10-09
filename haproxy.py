@@ -19,83 +19,24 @@ PLUGIN_NAME = 'haproxy'
 RECV_SIZE = 1024
 
 METRICS_TO_COLLECT = {
-    'ConnRate': 'gauge',
-    'CumReq': 'derive',
-    'Idle_pct': 'gauge',
-    'scur': 'gauge',
-    'SessRate': 'gauge',
-    'lbtot': 'counter',
-    'bout': 'derive',
-    'bin': 'derive',
-    'ttime': 'gauge',
-    'req_rate': 'gauge',
-    'rate': 'gauge',
-    'hrsp_2xx': 'derive',
-    'hrsp_4xx': 'derive',
-    'hrsp_5xx': 'derive',
-    'ereq': 'derive',
-    'dreq': 'derive',
-    'econ': 'derive',
-    'dresp': 'derive',
-    'qcur': 'gauge',
-    'qtime': 'gauge',
-    'rtime': 'gauge',
-    'eresp': 'derive',
-    'wretr': 'derive',
-    'wredis': 'derive',
-    'MaxConn': 'gauge',
-    'CumConns': 'derive',
-    'MaxConnRate': 'gauge',
-    'MaxSessRate': 'gauge',
-    'MaxSslConns': 'gauge',
-    'CumSslConns': 'derive',
-    'MaxPipes': 'gauge',
-    'Tasks': 'gauge',
-    'Run_queue': 'gauge',
-    'PipesUsed': 'gauge',
-    'PipesFree': 'gauge',
-    'Uptime_sec': 'derive',
-    'CurrConns': 'gauge',
-    'CurrSslConns': 'gauge',
-    'SslRate': 'gauge',
-    'SslFrontendKeyRate': 'gauge',
-    'SslBackendKeyRate': 'gauge',
-    'SslCacheLookups': 'derive',
-    'SslCacheMisses': 'derive',
-    'CompressBpsIn': 'derive',
-    'CompressBpsOut': 'derive',
-    'ZlibMemUsage': 'gauge',
-    'chkfail': 'derive',
-    'downtime': 'derive',
-    'hrsp_1xx': 'derive',
-    'hrsp_3xx': 'derive',
-    'hrsp_other': 'derive',
-    'qmax': 'gauge',
-    'qlimit': 'gauge',
-    'rate_lim': 'gauge',
-    'rate_max': 'gauge',
-    'req_rate_max': 'gauge',
-    'stot': 'derive',
-    'slim': 'gauge',
-    'smax': 'gauge',
-    'throttle': 'gauge',
-    'cli_abrt': 'derive',
-    'srv_abrt': 'derive',
-    'comp_in': 'derive',
-    'comp_out': 'derive',
-    'comp_byp': 'derive',
-    'comp_rsp': 'derive',
-    'ctime': 'gauge',
-    'act': 'gauge',
-    'bck': 'gauge',
-    'check_duration': 'gauge',
-    'lastsess': 'gauge',
-    'conn_rate': 'gauge',
-    'conn_rate_max': 'gauge',
-    'conn_tot': 'counter',
-    'intercepted': 'gauge',
-    'dcon': 'gauge',
-    'dses': 'gauge'
+    'ConnRate': 'gauge', 'CumReq': 'derive', 'Idle_pct': 'gauge', 'scur': 'gauge', 'SessRate': 'gauge',
+    'lbtot': 'counter', 'bout': 'derive', 'bin': 'derive', 'ttime': 'gauge', 'req_rate': 'gauge', 'rate': 'gauge',
+    'hrsp_2xx': 'derive', 'hrsp_4xx': 'derive', 'hrsp_5xx': 'derive', 'ereq': 'derive', 'dreq': 'derive',
+    'econ': 'derive', 'dresp': 'derive', 'qcur': 'gauge', 'qtime': 'gauge', 'rtime': 'gauge', 'eresp': 'derive',
+    'wretr': 'derive', 'wredis': 'derive', 'MaxConn': 'gauge', 'CumConns': 'derive', 'MaxConnRate': 'gauge',
+    'MaxSessRate': 'gauge', 'MaxSslConns': 'gauge', 'CumSslConns': 'derive', 'MaxPipes': 'gauge', 'Tasks': 'gauge',
+    'Run_queue': 'gauge', 'PipesUsed': 'gauge', 'PipesFree': 'gauge', 'Uptime_sec': 'derive', 'CurrConns': 'gauge',
+    'CurrSslConns': 'gauge', 'SslRate': 'gauge', 'SslFrontendKeyRate': 'gauge', 'SslBackendKeyRate': 'gauge',
+    'SslCacheLookups': 'derive', 'SslCacheMisses': 'derive', 'CompressBpsIn': 'derive', 'CompressBpsOut': 'derive',
+    'ZlibMemUsage': 'gauge', 'chkfail': 'derive', 'downtime': 'derive', 'hrsp_1xx': 'derive', 'hrsp_3xx': 'derive',
+    'hrsp_other': 'derive', 'qmax': 'gauge', 'qlimit': 'gauge', 'rate_lim': 'gauge', 'rate_max': 'gauge',
+    'req_rate_max': 'gauge', 'stot': 'derive', 'slim': 'gauge', 'smax': 'gauge', 'throttle': 'gauge',
+    'cli_abrt': 'derive', 'srv_abrt': 'derive', 'comp_in': 'derive', 'comp_out': 'derive', 'comp_byp': 'derive',
+    'comp_rsp': 'derive', 'ctime': 'gauge', 'act': 'gauge', 'bck': 'gauge', 'check_duration': 'gauge',
+    'lastsess': 'gauge', 'conn_rate': 'gauge', 'conn_rate_max': 'gauge', 'conn_tot': 'counter', 'intercepted': 'gauge',
+    'dcon': 'gauge', 'dses': 'gauge', 'sent': 'gauge', 'snd_error': 'gauge', 'valid': 'gauge', 'update': 'gauge',
+    'cname': 'gauge', 'cname_error': 'gauge', 'any_err': 'gauge', 'nx': 'gauge', 'timeout': 'gauge', 'refused': 'gauge',
+    'other': 'gauge', 'invalid': 'gauge', 'too_big': 'gauge', 'truncated': 'gauge', 'outdated': 'gauge'
 }
 
 DEFAULT_SOCKET = '/var/run/haproxy.sock'
@@ -151,6 +92,40 @@ class HAProxySocket(object):
         stat_sock.close()
         return result_buf.getvalue()
 
+    # This method isn't nice but there's no other way to parse the output of show resolvers from haproxy
+    def get_resolvers(self):
+        ''' Gets the resolver config and returns a map of nameserver -> nameservermetrics
+        The output from the socket looks like
+        Resolvers section mydns
+         nameserver dns1:
+          sent:        8
+          ...
+
+        :return:
+        map of nameserver -> nameservermetrics
+        e.g. '{dns1': {'sent': '8', ...}, ...}
+        '''
+        result = {}
+        output = self.communicate('show resolvers')
+        nameserver = ''
+        for line in output.splitlines():
+            try:
+                if 'Resolvers section' in line or line.strip() == '':
+                    continue
+                elif 'nameserver' in line:
+                    _, unsanitied_nameserver = line.strip().split(' ', 1)
+                    nameserver = unsanitied_nameserver[:-1] #remove trailing ':'
+                    result[nameserver] = {}
+                else:
+                    key, val = line.split(':', 1)
+                    current_nameserver_stats = result[nameserver]
+                    current_nameserver_stats[key.strip()] = val.strip()
+                    result[nameserver] = current_nameserver_stats
+            except ValueError:
+                continue
+
+        return result
+
     def get_server_info(self):
         result = {}
         output = self.communicate('show info')
@@ -187,6 +162,7 @@ def get_stats(module_config):
     try:
         server_info = haproxy.get_server_info()
         server_stats = haproxy.get_server_stats()
+        resolver_stats = haproxy.get_resolvers()
     except socket.error:
         collectd.warning('status err Unable to connect to HAProxy socket at %s' % module_config['socket'])
         return stats
@@ -208,6 +184,12 @@ def get_stats(module_config):
             except (TypeError, ValueError):
                 pass
 
+    for resolver, resolver_stats in resolver_stats.iteritems():
+        for metricname, val in resolver_stats.items():
+            try:
+                stats.append((metricname, int(val), {'is_resolver': True, 'nameserver': resolver}))
+            except (TypeError, ValueError):
+                pass
     return stats
 
 def should_capture_metric(statdict, module_config):
@@ -217,6 +199,9 @@ def should_capture_metric(statdict, module_config):
 
 def is_backend_server_metric(statdict):
     return 'type' in statdict and _get_proxy_type(statdict['type']) == 'server'
+
+def is_resolver_metric(statdict):
+    return 'is_resolver' in statdict and statdict['is_resolver']
 
 def config(config_values):
     """
@@ -241,10 +226,6 @@ def config(config_values):
             socket = node.values[0]
         elif node.key == "Interval" and node.values[0]:
             interval = node.values[0]
-        elif node.key == "EnhancedMetrics" and node.values[0]:
-            enhanced_metrics = _str_to_bool(node.values[0])
-        elif node.key == "ExcludeMetric" and node.values[0]:
-            excluded_metrics.add(node.values[0])
         elif node.key == "Testing" and node.values[0]:
             testing = _str_to_bool(node.values[0])
         elif node.key == 'Dimension':
@@ -284,6 +265,8 @@ def config(config_values):
 def _format_plugin_instance(dimensions):
     if is_backend_server_metric(dimensions):
         return "{0}.{1}.{2}".format("backend", dimensions['pxname'].lower(), dimensions['svname'])
+    elif is_resolver_metric(dimensions):
+        return "nameserver.{0}".format(dimensions['nameserver'])
     else:
         return "{0}.{1}".format(dimensions['svname'].lower(), dimensions['pxname'])
 

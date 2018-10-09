@@ -25,6 +25,9 @@ class MockHAProxySocketSimple(object):
     def __init__(self, socket_file="whatever"):
         self.socket_file = socket_file
 
+    def get_resolvers(self):
+        return {}
+
     def get_server_info(self):
         sample_data = {'ConnRate': '3', 'CumReq': '5', 'Idle_pct': '78'}
         return sample_data
@@ -60,6 +63,15 @@ def test_default_config():
 class MockHAProxySocketComplex(object):
     def __init__(self, socket_file="whatever"):
         self.socket_file = socket_file
+
+    def get_resolvers(self):
+        return {'dns1': {'sent': '8', 'snd_error': '0', 'valid': '4', 'update': '0', 'cname': '0', 'cname_error': '4',
+                         'any_err': '0', 'nx': '0', 'timeout': '0', 'refused': '0', 'other': '0', 'invalid': '0',
+                         'too_big': '0', 'truncated': '0', 'outdated': '0'},
+                'dns2': {'sent': '0', 'snd_error': '0', 'valid': '0', 'update': '0', 'cname': '0', 'cname_error': '0',
+                         'any_err': '0', 'nx': '0', 'timeout': '0', 'refused': '0', 'other': '0', 'invalid': '0',
+                         'too_big': '0', 'truncated': '0', 'outdated': '0'}}
+
 
     def get_server_info(self):
         sample_data = {'ConnRate': '3', 'CumReq': '5', 'Idle_pct': '78'}
@@ -215,3 +227,90 @@ def test_metrics_submitted_for_backend_and_server_with_correct_names():
         call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'qmax', 'type': 'gauge', 'plugin': 'haproxy'}),
         call({'values': (9,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'rate_max', 'type': 'gauge', 'plugin': 'haproxy'}),
         call({'values': (1,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'act', 'type': 'gauge', 'plugin': 'haproxy'})]    )
+
+@patch('haproxy.HAProxySocket', MockHAProxySocketComplex)
+def test_metrics_submitted_for_resolvers():
+    haproxy.submit_metrics = MagicMock()
+    mock_config = Mock()
+    mock_config.children = [
+        ConfigOption('Testing', ('True',))
+    ]
+    haproxy.collect_metrics(haproxy.config(mock_config))
+    haproxy.submit_metrics.assert_has_calls([
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns2', 'type_instance': 'cname_error', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns2', 'type_instance': 'truncated', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns2', 'type_instance': 'update', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns2', 'type_instance': 'refused', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns2', 'type_instance': 'any_err', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns2', 'type_instance': 'cname', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns2', 'type_instance': 'outdated', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns2', 'type_instance': 'too_big', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns2', 'type_instance': 'invalid', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns2', 'type_instance': 'snd_error', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns2', 'type_instance': 'nx', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns2', 'type_instance': 'valid', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns2', 'type_instance': 'timeout', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns2', 'type_instance': 'other', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns2', 'type_instance': 'sent', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (4,), 'plugin_instance': 'nameserver.dns1', 'type_instance': 'cname_error', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns1', 'type_instance': 'truncated', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns1', 'type_instance': 'update', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns1', 'type_instance': 'refused', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns1', 'type_instance': 'any_err', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns1', 'type_instance': 'cname', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns1', 'type_instance': 'outdated', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns1', 'type_instance': 'too_big', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns1', 'type_instance': 'invalid', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns1', 'type_instance': 'snd_error', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns1', 'type_instance': 'nx', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (4,), 'plugin_instance': 'nameserver.dns1', 'type_instance': 'valid', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns1', 'type_instance': 'timeout', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'nameserver.dns1', 'type_instance': 'other', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (8,), 'plugin_instance': 'nameserver.dns1', 'type_instance': 'sent', 'type': 'gauge', 'plugin': 'haproxy'})
+    ])
+
+def test_resolver_stats_can_be_parsed():
+    haproxy_socket = haproxy.HAProxySocket(MagicMock())
+    haproxy_socket.communicate = MagicMock(return_value="""Resolvers section mydns
+ nameserver dns1:
+  sent:        8
+  snd_error:   0
+  valid:       4
+  update:      0
+  cname:       0
+  cname_error: 4
+  any_err:     0
+  nx:          0
+  timeout:     0
+  refused:     0
+  other:       0
+  invalid:     0
+  too_big:     0
+  truncated:   0
+  outdated:    0
+
+Resolvers section mydns2
+ nameserver dns2:
+  sent:        0
+  snd_error:   0
+  valid:       0
+  update:      0
+  cname:       0
+  cname_error: 0
+  any_err:     0
+  nx:          0
+  timeout:     0
+  refused:     0
+  other:       0
+  invalid:     0
+  too_big:     0
+  truncated:   0
+  outdated:    0""")
+    assert haproxy_socket.get_resolvers() == \
+           {
+               'dns1': {'sent': '8', 'snd_error': '0', 'valid': '4', 'update': '0', 'cname': '0', 'cname_error': '4',
+                     'any_err': '0', 'nx': '0', 'timeout': '0', 'refused': '0', 'other': '0', 'invalid': '0',
+                     'too_big': '0', 'truncated': '0', 'outdated': '0'},
+               'dns2': {'sent': '0', 'snd_error': '0', 'valid': '0', 'update': '0', 'cname': '0', 'cname_error': '0',
+                     'any_err': '0', 'nx': '0', 'timeout': '0', 'refused': '0', 'other': '0', 'invalid': '0',
+                     'too_big': '0', 'truncated': '0', 'outdated': '0'}}
