@@ -18,113 +18,85 @@ import collectd
 PLUGIN_NAME = 'haproxy'
 RECV_SIZE = 1024
 
-DEFAULT_METRICS = {
-    'ConnRate': ('connection_rate', 'gauge'),
-    'CumReq': ('requests', 'derive'),
-    'Idle_pct': ('idle_pct', 'gauge'),
-    'scur': ('session_current', 'gauge'),
-    'SessRate': ('session_rate_all', 'gauge'),
-    'lbtot': ('server_selected_total', 'counter'),
-    'bout': ('bytes_out', 'derive'),
-    'bin': ('bytes_in', 'derive'),
-    'ttime': ('session_time_avg', 'gauge'),
-    'req_rate': ('request_rate', 'gauge'),
-    'rate': ('session_rate', 'gauge'),
-    'hrsp_2xx': ('response_2xx', 'derive'),
-    'hrsp_4xx': ('response_4xx', 'derive'),
-    'hrsp_5xx': ('response_5xx', 'derive'),
-    'ereq': ('error_request', 'derive'),
-    'dreq': ('denied_request', 'derive'),
-    'econ': ('error_connection', 'derive'),
-    'dresp': ('denied_response', 'derive'),
-    'qcur': ('queue_current', 'gauge'),
-    'qtime': ('queue_time_avg', 'gauge'),
-    'rtime': ('response_time_avg', 'gauge'),
-    'eresp': ('error_response', 'derive'),
-    'wretr': ('retries', 'derive'),
-    'wredis': ('redispatched', 'derive'),
+METRICS_TO_COLLECT = {
+    'ConnRate': 'gauge',
+    'CumReq': 'derive',
+    'Idle_pct': 'gauge',
+    'scur': 'gauge',
+    'SessRate': 'gauge',
+    'lbtot': 'counter',
+    'bout': 'derive',
+    'bin': 'derive',
+    'ttime': 'gauge',
+    'req_rate': 'gauge',
+    'rate': 'gauge',
+    'hrsp_2xx': 'derive',
+    'hrsp_4xx': 'derive',
+    'hrsp_5xx': 'derive',
+    'ereq': 'derive',
+    'dreq': 'derive',
+    'econ': 'derive',
+    'dresp': 'derive',
+    'qcur': 'gauge',
+    'qtime': 'gauge',
+    'rtime': 'gauge',
+    'eresp': 'derive',
+    'wretr': 'derive',
+    'wredis': 'derive',
+    'MaxConn': 'gauge',
+    'CumConns': 'derive',
+    'MaxConnRate': 'gauge',
+    'MaxSessRate': 'gauge',
+    'MaxSslConns': 'gauge',
+    'CumSslConns': 'derive',
+    'MaxPipes': 'gauge',
+    'Tasks': 'gauge',
+    'Run_queue': 'gauge',
+    'PipesUsed': 'gauge',
+    'PipesFree': 'gauge',
+    'Uptime_sec': 'derive',
+    'CurrConns': 'gauge',
+    'CurrSslConns': 'gauge',
+    'SslRate': 'gauge',
+    'SslFrontendKeyRate': 'gauge',
+    'SslBackendKeyRate': 'gauge',
+    'SslCacheLookups': 'derive',
+    'SslCacheMisses': 'derive',
+    'CompressBpsIn': 'derive',
+    'CompressBpsOut': 'derive',
+    'ZlibMemUsage': 'gauge',
+    'chkfail': 'derive',
+    'downtime': 'derive',
+    'hrsp_1xx': 'derive',
+    'hrsp_3xx': 'derive',
+    'hrsp_other': 'derive',
+    'qmax': 'gauge',
+    'qlimit': 'gauge',
+    'rate_lim': 'gauge',
+    'rate_max': 'gauge',
+    'req_rate_max': 'gauge',
+    'stot': 'derive',
+    'slim': 'gauge',
+    'smax': 'gauge',
+    'throttle': 'gauge',
+    'cli_abrt': 'derive',
+    'srv_abrt': 'derive',
+    'comp_in': 'derive',
+    'comp_out': 'derive',
+    'comp_byp': 'derive',
+    'comp_rsp': 'derive',
+    'ctime': 'gauge',
+    'act': 'gauge',
+    'bck': 'gauge',
+    'check_duration': 'gauge',
+    'lastsess': 'gauge',
+    'conn_rate': 'gauge',
+    'conn_rate_max': 'gauge',
+    'conn_tot': 'counter',
+    'intercepted': 'gauge',
+    'dcon': 'gauge',
+    'dses': 'gauge'
 }
-
-ENHANCED_METRICS = {
-    # Metrics that are collected for the whole haproxy instance.
-    # The format is  haproxy_metricname : {'signalfx_corresponding_metric': 'collectd_type'}
-    # Currently signalfx_corresponding_metric match haproxy_metricname
-    # Correspond to 'show info' socket command
-    'MaxConn': ('max_connections', 'gauge'),
-    'CumConns': ('connections', 'derive'),
-    'MaxConnRate': ('max_connection_rate', 'gauge'),
-    'MaxSessRate': ('max_session_rate', 'gauge'),
-    'MaxSslConns': ('max_ssl_connections', 'gauge'),
-    'CumSslConns': ('ssl_connections', 'derive'),
-    'MaxPipes': ('max_pipes', 'gauge'),
-    'Tasks': ('tasks', 'gauge'),
-    'Run_queue': ('run_queue', 'gauge'),
-    'PipesUsed': ('pipes_used', 'gauge'),
-    'PipesFree': ('pipes_free', 'gauge'),
-    'Uptime_sec': ('uptime_seconds', 'derive'),
-    'CurrConns': ('current_connections', 'gauge'),
-    'CurrSslConns': ('current_ssl_connections', 'gauge'),
-    'SslRate': ('ssl_rate', 'gauge'),
-    'SslFrontendKeyRate': ('ssl_frontend_key_rate', 'gauge'),
-    'SslBackendKeyRate': ('ssl_backend_key_rate', 'gauge'),
-    'SslCacheLookups': ('ssl_cache_lookups', 'derive'),
-    'SslCacheMisses': ('ssl_cache_misses', 'derive'),
-    'CompressBpsIn': ('compress_bps_in', 'derive'),
-    'CompressBpsOut': ('compress_bps_out', 'derive'),
-    'ZlibMemUsage': ('zlib_mem_usage', 'gauge'),
-
-    # Metrics that are collected per each proxy separately.
-    # Proxy name would be the dimension as well as service_name
-    # Correspond to 'show stats' socket command
-    'chkfail': ('failed_checks', 'derive'),
-    'downtime': ('downtime', 'derive'),
-    'hrsp_1xx': ('response_1xx', 'derive'),
-    'hrsp_3xx': ('response_3xx', 'derive'),
-    'hrsp_other': ('response_other', 'derive'),
-    'qmax': ('queue_max', 'gauge'),
-    'qlimit': ('queue_limit', 'gauge'),
-    'rate_lim': ('session_rate_limit', 'gauge'),
-    'rate_max': ('session_rate_max', 'gauge'),
-    'req_rate_max': ('request_rate_max', 'gauge'),
-    'stot': ('session_total', 'derive'),
-    'slim': ('session_limit', 'gauge'),
-    'smax': ('session_max', 'gauge'),
-    'throttle': ('throttle', 'gauge'),
-    'cli_abrt': ('cli_abrt', 'derive'),
-    'srv_abrt': ('srv_abrt', 'derive'),
-    'comp_in': ('comp_in', 'derive'),
-    'comp_out': ('comp_out', 'derive'),
-    'comp_byp': ('comp_byp', 'derive'),
-    'comp_rsp': ('comp_rsp', 'derive'),
-    'ctime': ('connect_time_avg', 'gauge'),
-    'act': ('active_servers', 'gauge'),
-    'bck': ('backup_servers', 'gauge'),
-    'check_duration': ('health_check_duration', 'gauge'),
-    'lastsess': ('last_session', 'gauge'),
-    'conn_rate': ('conn_rate', 'gauge'),
-    'conn_rate_max': ('conn_rate_max', 'gauge'),
-    'conn_tot': ('conn_total', 'counter'),
-    'intercepted': ('intercepted', 'gauge'),
-    'dcon': ('denied_tcp_conn', 'gauge'),
-    'dses': ('denied_tcp_sess', 'gauge'),
-}
-
-DIMENSIONS_LIST = [
-    'pxname',
-    'svname',
-    'pid',
-    'sid',
-    'iid',
-    'type',
-    'addr',
-    'cookie',
-    'mode',
-    'algo',
-]
-
-DEFAULT_METRICS = dict((k.lower(), v) for k, v in DEFAULT_METRICS.items())
-ENHANCED_METRICS = dict((k.lower(), v) for k, v in ENHANCED_METRICS.items())
-METRIC_DELIM = '.'  # for the frontend/backend stats
 
 DEFAULT_SOCKET = '/var/run/haproxy.sock'
 DEFAULT_PROXY_MONITORS = ['server', 'frontend', 'backend']
@@ -369,29 +341,14 @@ def collect_metrics(module_config):
 
     for metric_name, metric_value, dimensions in info:
         # assert metric is in valid metrics lists
-        if not metric_name.lower() in DEFAULT_METRICS and not metric_name.lower() in ENHANCED_METRICS:
-            collectd.debug("metric %s is not in either metric list" % metric_name.lower())
-            continue
-
-        # skip metrics in enhanced metrics mode if not enabled
-        if not module_config['enhanced_metrics'] and metric_name.lower() in ENHANCED_METRICS:
-            continue
-
-        # pull metric name & type from respective metrics list
-        if metric_name.lower() in DEFAULT_METRICS:
-            translated_metric_name, val_type = DEFAULT_METRICS[metric_name.lower()]
-        else:
-            translated_metric_name, val_type = ENHANCED_METRICS[metric_name.lower()]
-
-        # skip over any exlcluded metrics
-        if translated_metric_name in module_config['excluded_metrics']:
-            collectd.debug("excluding metric %s" % translated_metric_name)
+        if not metric_name in METRICS_TO_COLLECT:
+            collectd.debug("metric %s is not in list of metrics to collect" % metric_name.lower())
             continue
 
         metric_datapoint = {
                     'plugin': PLUGIN_NAME,
-                    'type': val_type,
-                    'type_instance': translated_metric_name,
+                    'type': METRICS_TO_COLLECT[metric_name],
+                    'type_instance': metric_name.lower(),
                     'values': (metric_value,)
                 }
         if len(dimensions) > 0:

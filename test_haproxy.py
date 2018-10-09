@@ -26,7 +26,7 @@ class MockHAProxySocketSimple(object):
         self.socket_file = socket_file
 
     def get_server_info(self):
-        sample_data = {'ConnRate': '3', 'CumReq': '5', 'idle_pct': '78'}
+        sample_data = {'ConnRate': '3', 'CumReq': '5', 'Idle_pct': '78'}
         return sample_data
 
     def get_server_stats(self):
@@ -54,101 +54,15 @@ mock_config_default_values.children = [
 def test_default_config():
     module_config = haproxy.config(mock_config_default_values)
     assert module_config['socket'] == '/var/run/haproxy.sock'
-    assert not module_config['enhanced_metrics']
     assert module_config['proxy_monitors'] == ['server', 'frontend', 'backend']
     assert module_config['testing']
-    assert module_config['excluded_metrics'] == set()
-
-
-mock_config_enhanced_metrics_off = Mock()
-mock_config_enhanced_metrics_off.children = [
-    ConfigOption('Socket', ('/var/run/haproxy.sock',)),
-    ConfigOption('EnhancedMetrics', ('False',)),
-    ConfigOption('Testing', ('True',))
-]
-
-
-def test_enhanced_metrics_off_config():
-    module_config = haproxy.config(mock_config_enhanced_metrics_off)
-    assert module_config['socket'] == '/var/run/haproxy.sock'
-    assert not module_config['enhanced_metrics']
-    assert module_config['proxy_monitors'] == ['server', 'frontend', 'backend']
-    assert module_config['testing']
-    assert module_config['excluded_metrics'] == set()
-
-
-mock_config_enhanced_metrics_on = Mock()
-mock_config_enhanced_metrics_on.children = [
-    ConfigOption('Socket', ('/var/run/haproxy.sock',)),
-    ConfigOption('EnhancedMetrics', ('True',)),
-    ConfigOption('Testing', ('True',))
-]
-
-
-def test_enhanced_metrics_on_config():
-    module_config = haproxy.config(mock_config_enhanced_metrics_on)
-    assert module_config['socket'] == '/var/run/haproxy.sock'
-    assert module_config['enhanced_metrics']
-    assert module_config['proxy_monitors'] == ['server', 'frontend', 'backend']
-    assert module_config['testing']
-    assert module_config['excluded_metrics'] == set()
-
-mock_config_exclude_idle_pct = Mock()
-mock_config_exclude_idle_pct.children = [
-    ConfigOption('Socket', ('/var/run/haproxy.sock',)),
-    ConfigOption('EnhancedMetrics', ('False',)),
-    ConfigOption('ExcludeMetric', ('idle_pct',)),
-    ConfigOption('Testing', ('True',))
-]
-
-
-def test_exclude_metrics_config():
-    module_config = haproxy.config(mock_config_exclude_idle_pct)
-    assert module_config['socket'] == '/var/run/haproxy.sock'
-    assert not module_config['enhanced_metrics']
-    assert module_config['proxy_monitors'] == ['server', 'frontend', 'backend']
-    assert module_config['testing']
-    assert module_config['excluded_metrics'] == set(['idle_pct'])
-
-mock_config = Mock()
-mock_config.children = [
-    ConfigOption('Testing', ('True',))
-]
-
-
-@patch('haproxy.HAProxySocket', MockHAProxySocketSimple)
-def test_read():
-    haproxy.collect_metrics(haproxy.config(mock_config))
-
-mock_config_exclude_bytes_out = Mock()
-mock_config_exclude_bytes_out.children = [
-    ConfigOption('ExcludeMetric', ('bytes_out',)),
-    ConfigOption('Testing', ('True',))
-]
-
-
-@patch('haproxy.HAProxySocket', MockHAProxySocketSimple)
-def test_exclude_metric():
-    haproxy.collect_metrics(haproxy.config(mock_config_exclude_bytes_out))
-
-mock_config_enhanced_sample = Mock()
-mock_config_enhanced_sample.children = [
-    ConfigOption('ProxyMonitor', ('sample_proxy',)),
-    ConfigOption('EnhancedMetrics', ('True',)),
-    ConfigOption('Testing', ('True',))
-]
-
-
-@patch('haproxy.HAProxySocket', MockHAProxySocketSimple)
-def test_enhanced_metrics():
-    haproxy.collect_metrics(haproxy.config(mock_config_enhanced_sample))
 
 class MockHAProxySocketComplex(object):
     def __init__(self, socket_file="whatever"):
         self.socket_file = socket_file
 
     def get_server_info(self):
-        sample_data = {'ConnRate': '3', 'CumReq': '5', 'idle_pct': '78'}
+        sample_data = {'ConnRate': '3', 'CumReq': '5', 'Idle_pct': '78'}
         return sample_data
 
     def get_server_stats(self):
@@ -214,22 +128,23 @@ def test_metrics_submitted_for_frontend_with_correct_names():
         ConfigOption('Testing', ('True',))
     ]
     haproxy.collect_metrics(haproxy.config(mock_config))
-    haproxy.submit_metrics.assert_has_calls([
-        call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'session_max', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'session_rate', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'request_rate', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'denied_response', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'error_request', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'denied_request', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'bytes_in', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'session_total', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'request_rate_max', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (8000,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'session_limit', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'session_rate_limit', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'bytes_out', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'session_current', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (10,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'session_rate_max', 'type': 'gauge', 'plugin': 'haproxy'})]
-    )
+    haproxy.submit_metrics.assert_has_calls([call({'values': (3,), 'type_instance': 'connrate', 'type': 'gauge', 'plugin': 'haproxy'}),
+                                             call({'values': (5,), 'type_instance': 'cumreq', 'type': 'derive', 'plugin': 'haproxy'}),
+                                             call({'values': (78,), 'type_instance': 'idle_pct', 'type': 'gauge', 'plugin': 'haproxy'}),
+                                             call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'smax', 'type': 'gauge', 'plugin': 'haproxy'}),
+                                             call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'rate', 'type': 'gauge', 'plugin': 'haproxy'}),
+                                             call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'req_rate', 'type': 'gauge', 'plugin': 'haproxy'}),
+                                             call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'dresp', 'type': 'derive', 'plugin': 'haproxy'}),
+                                             call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'ereq', 'type': 'derive', 'plugin': 'haproxy'}),
+                                             call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'dreq', 'type': 'derive', 'plugin': 'haproxy'}),
+                                             call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'bin', 'type': 'derive', 'plugin': 'haproxy'}),
+                                             call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'stot', 'type': 'derive', 'plugin': 'haproxy'}),
+                                             call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'req_rate_max', 'type': 'gauge', 'plugin': 'haproxy'}),
+                                             call({'values': (8000,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'slim', 'type': 'gauge', 'plugin': 'haproxy'}),
+                                             call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'rate_lim', 'type': 'gauge', 'plugin': 'haproxy'}),
+                                             call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'bout', 'type': 'derive', 'plugin': 'haproxy'}),
+                                             call({'values': (0,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'scur', 'type': 'gauge', 'plugin': 'haproxy'}),
+                                             call({'values': (10,), 'plugin_instance': 'frontend.sensu_frontend', 'type_instance': 'rate_max', 'type': 'gauge', 'plugin': 'haproxy'})]    )
 
 @patch('haproxy.HAProxySocket', MockHAProxySocketComplex)
 def test_metrics_submitted_for_backend_and_server_with_correct_names():
@@ -242,63 +157,61 @@ def test_metrics_submitted_for_backend_and_server_with_correct_names():
     ]
     haproxy.collect_metrics(haproxy.config(mock_config))
     haproxy.submit_metrics.assert_has_calls([
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'response_time_avg', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (2,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'session_max', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'comp_byp', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'last_session', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (3,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'session_rate', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'redispatched', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'comp_out', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'error_response', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'denied_response', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'comp_in', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'denied_request', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'cli_abrt', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'bytes_in', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (344777,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'server_selected_total', 'type': 'counter', 'plugin': 'haproxy'}),
-        call({'values': (515751,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'session_total', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'error_connection', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (18,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'session_time_avg', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (800,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'session_limit', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'downtime', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'queue_current', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'comp_rsp', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'retries', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'queue_time_avg', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'srv_abrt', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'bytes_out', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'connect_time_avg', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'session_current', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'backup_servers', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'queue_max', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (9,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'session_rate_max', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (1,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'active_servers', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'response_time_avg', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (2,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'session_max', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'last_session', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'health_check_duration', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (2,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'session_rate', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'redispatched', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'error_response', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'denied_response', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'rtime', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (2,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'smax', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'lastsess', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'check_duration', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (2,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'rate', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'wredis', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'eresp', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'dresp', 'type': 'derive', 'plugin': 'haproxy'}),
         call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'cli_abrt', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'bytes_in', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (344777,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'server_selected_total', 'type': 'counter', 'plugin': 'haproxy'}),
-        call({'values': (344777,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'session_total', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'error_connection', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (18,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'session_time_avg', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'bin', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (344777,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'lbtot', 'type': 'counter', 'plugin': 'haproxy'}),
+        call({'values': (344777,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'stot', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'econ', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (18,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'ttime', 'type': 'gauge', 'plugin': 'haproxy'}),
         call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'downtime', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'queue_current', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'retries', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'queue_time_avg', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'qcur', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'wretr', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'qtime', 'type': 'gauge', 'plugin': 'haproxy'}),
         call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'srv_abrt', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'bytes_out', 'type': 'derive', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'connect_time_avg', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'session_current', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'backup_servers', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'queue_max', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (9,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'session_rate_max', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (1,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'active_servers', 'type': 'gauge', 'plugin': 'haproxy'}),
-        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'failed_checks', 'type': 'derive', 'plugin': 'haproxy'}),
-    ], any_order=True
-    )
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'bout', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'ctime', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'scur', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'bck', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'qmax', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (9,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'rate_max', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (1,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'act', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend.elasticache', 'type_instance': 'chkfail', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'rtime', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (2,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'smax', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'comp_byp', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'lastsess', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (3,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'rate', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'wredis', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'comp_out', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'eresp', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'dresp', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'comp_in', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'dreq', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'cli_abrt', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'bin', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (344777,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'lbtot', 'type': 'counter', 'plugin': 'haproxy'}),
+        call({'values': (515751,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'stot', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'econ', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (18,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'ttime', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (800,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'slim', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'downtime', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'qcur', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'comp_rsp', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'wretr', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'qtime', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'srv_abrt', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'bout', 'type': 'derive', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'ctime', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'scur', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'bck', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (0,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'qmax', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (9,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'rate_max', 'type': 'gauge', 'plugin': 'haproxy'}),
+        call({'values': (1,), 'plugin_instance': 'backend.elasticsearch_backend', 'type_instance': 'act', 'type': 'gauge', 'plugin': 'haproxy'})]    )
