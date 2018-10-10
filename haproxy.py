@@ -114,7 +114,7 @@ class HAProxySocket(object):
                     continue
                 elif 'nameserver' in line:
                     _, unsanitied_nameserver = line.strip().split(' ', 1)
-                    nameserver = unsanitied_nameserver[:-1] #remove trailing ':'
+                    nameserver = unsanitied_nameserver[:-1]  # remove trailing ':'
                     result[nameserver] = {}
                 else:
                     key, val = line.split(':', 1)
@@ -192,16 +192,20 @@ def get_stats(module_config):
                 pass
     return stats
 
+
 def should_capture_metric(statdict, module_config):
     return (('svname' in statdict and statdict['svname'].lower() in module_config['proxy_monitors']) or
             ('pxname' in statdict and statdict['pxname'].lower() in module_config['proxy_monitors']) or
             is_backend_server_metric(statdict) and 'backend' in module_config['proxy_monitors'])
 
+
 def is_backend_server_metric(statdict):
     return 'type' in statdict and _get_proxy_type(statdict['type']) == 'server'
 
+
 def is_resolver_metric(statdict):
     return 'is_resolver' in statdict and statdict['is_resolver']
+
 
 def config(config_values):
     """
@@ -298,6 +302,7 @@ def _str_to_bool(val):
 
     return False
 
+
 def submit_metrics(metric_datapoint):
     datapoint = collectd.Values()
     datapoint.type = metric_datapoint['type']
@@ -324,7 +329,7 @@ def collect_metrics(module_config):
 
     for metric_name, metric_value, dimensions in info:
         # assert metric is in valid metrics lists
-        if not metric_name in METRICS_TO_COLLECT:
+        if metric_name not in METRICS_TO_COLLECT:
             collectd.debug("metric %s is not in list of metrics to collect" % metric_name.lower())
             continue
 
@@ -338,5 +343,6 @@ def collect_metrics(module_config):
             metric_datapoint['plugin_instance'] = _format_plugin_instance(dimensions)
         collectd.debug(pprint.pformat(metric_datapoint))
         submit_metrics(metric_datapoint)
+
 
 collectd.register_config(config)
