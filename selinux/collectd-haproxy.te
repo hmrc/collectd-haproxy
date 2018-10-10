@@ -1,0 +1,14 @@
+module collectd-haproxy 1.0;
+
+require {
+	type collectd_t;
+	type haproxy_t;
+	type haproxy_var_lib_t;
+	class sock_file write;
+	class unix_stream_socket connectto;
+}
+
+#============= collectd_t ==============
+
+allow collectd_t haproxy_t:unix_stream_socket connectto;
+allow collectd_t haproxy_var_lib_t:sock_file write;
