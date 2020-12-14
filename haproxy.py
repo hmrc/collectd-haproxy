@@ -65,7 +65,8 @@ class HAProxySocket(object):
                 stat_sock.connect((socket_host, int(port)))
                 return stat_sock
             else:
-                collectd.error('Could not connect to socket with host %s. Check HAProxy config.' % self.socket_file)
+                collectd.error(
+                    'Could not connect to socket with host %s. Check HAProxy config.' % self.socket_file)
                 return
 
     def communicate(self, command):
@@ -114,7 +115,8 @@ class HAProxySocket(object):
                     continue
                 elif 'nameserver' in line:
                     _, unsanitied_nameserver = line.strip().split(' ', 1)
-                    nameserver = unsanitied_nameserver[:-1]  # remove trailing ':'
+                    # remove trailing ':'
+                    nameserver = unsanitied_nameserver[:-1]
                     result[nameserver] = {}
                 else:
                     key, val = line.split(':', 1)
@@ -154,7 +156,8 @@ def get_stats(module_config):
         Returns the dict containing metric name as the key and a tuple of metric value and the dict of dimensions if any
     """
     if module_config['socket'] is None:
-        collectd.error("Socket configuration parameter is undefined. Couldn't get the stats")
+        collectd.error(
+            "Socket configuration parameter is undefined. Couldn't get the stats")
         return
     stats = []
     haproxy = HAProxySocket(module_config['socket'])
@@ -164,7 +167,8 @@ def get_stats(module_config):
         server_stats = haproxy.get_server_stats()
         resolver_stats = haproxy.get_resolvers()
     except socket.error:
-        collectd.warning('status err Unable to connect to HAProxy socket at %s' % module_config['socket'])
+        collectd.warning(
+            'status err Unable to connect to HAProxy socket at %s' % module_config['socket'])
         return stats
 
     # server wide stats
@@ -187,7 +191,8 @@ def get_stats(module_config):
     for resolver, resolver_stats in resolver_stats.iteritems():
         for metricname, val in resolver_stats.items():
             try:
-                stats.append((metricname, int(val), {'is_resolver': True, 'nameserver': resolver}))
+                stats.append(
+                    (metricname, int(val), {'is_resolver': True, 'nameserver': resolver}))
             except (TypeError, ValueError):
                 pass
     return stats
@@ -262,7 +267,8 @@ def config(config_values):
     if interval:
         interval_kwarg['interval'] = interval
     collectd.register_read(collect_metrics, data=module_config,
-                           name='node_' + module_config['socket'] + '_' + proxys,
+                           name='node_' +
+                           module_config['socket'] + '_' + proxys,
                            **interval_kwarg)
 
 
@@ -298,7 +304,8 @@ def _str_to_bool(val):
     if val == 'true':
         return True
     elif val != 'false':
-        collectd.warning('Warning: String (%s) could not be converted to a boolean. Returning false.' % val)
+        collectd.warning(
+            'Warning: String (%s) could not be converted to a boolean. Returning false.' % val)
 
     return False
 
@@ -330,17 +337,19 @@ def collect_metrics(module_config):
     for metric_name, metric_value, dimensions in info:
         # assert metric is in valid metrics lists
         if metric_name not in METRICS_TO_COLLECT:
-            collectd.debug("metric %s is not in list of metrics to collect" % metric_name.lower())
+            collectd.debug(
+                "metric %s is not in list of metrics to collect" % metric_name.lower())
             continue
 
         metric_datapoint = {
-                    'plugin': PLUGIN_NAME,
-                    'type': METRICS_TO_COLLECT[metric_name],
-                    'type_instance': metric_name.lower(),
-                    'values': (metric_value,)
-                }
+            'plugin': PLUGIN_NAME,
+            'type': METRICS_TO_COLLECT[metric_name],
+            'type_instance': metric_name.lower(),
+            'values': (metric_value,)
+        }
         if len(dimensions) > 0:
-            metric_datapoint['plugin_instance'] = _format_plugin_instance(dimensions)
+            metric_datapoint['plugin_instance'] = _format_plugin_instance(
+                dimensions)
         collectd.debug(pprint.pformat(metric_datapoint))
         submit_metrics(metric_datapoint)
 
