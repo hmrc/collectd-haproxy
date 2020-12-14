@@ -107,9 +107,14 @@ class HAProxySocket(object):
         e.g. '{dns1': {'sent': '8', ...}, ...}
         '''
         result = {}
-        output = self.communicate('show resolvers')
+        output = self.communicate('show resolvers').splitlines()
         nameserver = ''
-        for line in output.splitlines():
+
+        # check if command is supported
+        if len(output) > 0 and output[0].lower().startswith('unknown command'):
+            return result
+
+        for line in output:
             try:
                 if 'Resolvers section' in line or line.strip() == '':
                     continue
