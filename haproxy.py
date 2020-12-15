@@ -201,7 +201,17 @@ class HAProxySocket(object):
                 elif key in METRICS_AGGR_AVG:
                     # collectd.warning(
                     #     "[{}] averaging {}".format(aggr_key, key))
-                    pass
+                    if not val_right or not val_right.isdigit():
+                        # collectd.warning(
+                        #     '[{}] right value not suitable "{}"'.format(aggr_key, val_right))
+                        continue
+                    key_aggr_avg_label = '{}_aggr_avg_cnt'.format(key)
+                    if key_aggr_avg_label not in aggregate[aggr_key]:
+                        aggregate[aggr_key][key_aggr_avg_label] = 0
+
+                    aggregate[aggr_key][key_aggr_avg_label] = aggregate[aggr_key][key_aggr_avg_label] + 1
+                    aggregate[aggr_key][key] = ((val_left *
+                                                 (aggregate[aggr_key][key_aggr_avg_label] - 1)) + int(val_right)) / aggregate[aggr_key][key_aggr_avg_label]
                 else:
                     # collectd.warning(
                     #     "[{}] dropping {}".format(aggr_key, key))
