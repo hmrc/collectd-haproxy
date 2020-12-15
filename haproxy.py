@@ -38,13 +38,17 @@ METRICS_TO_COLLECT = {
     'other': 'gauge', 'invalid': 'gauge', 'too_big': 'gauge', 'truncated': 'gauge', 'outdated': 'gauge'
 }
 
+# svname, pxname, type are absolutely mandatory
+# here to keep the overall plugin flow working
 METRICS_AGGR_PULL = [
     'svname', 'pxname', 'type'
 ]
 METRICS_AGGR_SUM = [
-    'lbtot', 'bout', 'bin', 'hrsp_2xx', 'hrsp_3xx', 'hrsp_4xx', 'hrsp_5xx', 'ereq', 'dreq', 'econ', 'dresp', 'qcur'
+    'hrsp_2xx', 'hrsp_2xx', 'hrsp_3xx', 'hrsp_4xx', 'hrsp_5xx'
 ]
-METRICS_AGGR_AVG = []
+METRICS_AGGR_AVG = [
+    'rtime'
+]
 
 DEFAULT_SOCKET = '/var/run/haproxy.sock'
 DEFAULT_PROXY_MONITORS = ['server', 'frontend', 'backend']
@@ -159,14 +163,14 @@ class HAProxySocket(object):
         return 'U'
 
     def get_server_stats(self):
-        result = None
+        result = []
         sockets_stats = self.communicate('show stat')
         for stat in sockets_stats:
             # sanitize and make a list of lines
             output = stat.lstrip('# ').strip()
             output = [line.strip(',') for line in output.splitlines()]
             csvreader = csv.DictReader(output)
-            result = [d.copy() for d in csvreader]
+            result += [d.copy() for d in csvreader]
 
         return HAProxySocket._aggregate(result)
 
