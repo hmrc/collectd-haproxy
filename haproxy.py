@@ -10,7 +10,6 @@
 
 import collectd
 import csv
-import pprint
 import re
 import socket
 
@@ -411,7 +410,6 @@ def submit_metrics(metric_datapoint):
     if 'plugin_instance' in metric_datapoint.keys():
         datapoint.plugin_instance = metric_datapoint['plugin_instance']
     datapoint.values = metric_datapoint['values']
-    collectd.debug(pprint.pformat(metric_datapoint))
     datapoint.dispatch()
 
 
@@ -443,7 +441,6 @@ def collect_metrics(module_config):
         if len(dimensions) > 0:
             metric_datapoint['plugin_instance'] = _format_plugin_instance(
                 dimensions)
-        collectd.debug(pprint.pformat(metric_datapoint))
         submit_metrics(metric_datapoint)
 
 
