@@ -8,12 +8,11 @@
 #
 # Modified by "Warren Turkal" <wt@signalfuse.com>, "Volodymyr Zhabiuk" <vzhabiuk@signalfx.com>
 
-import cStringIO as StringIO
-import socket
+import collectd
 import csv
 import pprint
-
-import collectd
+import re
+import socket
 
 PLUGIN_NAME = 'haproxy'
 RECV_SIZE = 1024
@@ -39,38 +38,31 @@ METRICS_TO_COLLECT = {
     'other': 'gauge', 'invalid': 'gauge', 'too_big': 'gauge', 'truncated': 'gauge', 'outdated': 'gauge'
 }
 
+METRICS_AGGR_PULL = [
+    'svname', 'pxname', 'type'
+]
+METRICS_AGGR_SUM = [
+    'lbtot', 'bout', 'bin', 'hrsp_2xx', 'hrsp_3xx', 'hrsp_4xx', 'hrsp_5xx', 'ereq', 'dreq', 'econ', 'dresp', 'qcur'
+]
+METRICS_AGGR_AVG = []
+
 DEFAULT_SOCKET = '/var/run/haproxy.sock'
 DEFAULT_PROXY_MONITORS = ['server', 'frontend', 'backend']
 
 
 class HAProxySocket(object):
-    """
-            Encapsulates communication with HAProxy via the socket interface
-    """
+    '''
+    Encapsulates communication with HAProxy via the socket interface
+    '''
 
-    def __init__(self, socket_file=DEFAULT_SOCKET):
-        self.socket_file = socket_file
-
-    def connect(self):
-        # unix sockets all start with '/', use tcp otherwise
-        is_unix = self.socket_file.startswith('/')
-        if is_unix:
-            stat_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            stat_sock.connect(self.socket_file)
-            return stat_sock
-        else:
-            socket_host, separator, port = self.socket_file.rpartition(':')
-            if socket_host != '' and port != '' and separator == ':':
-                stat_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                stat_sock.connect((socket_host, int(port)))
-                return stat_sock
-            else:
-                collectd.error(
-                    'Could not connect to socket with host %s. Check HAProxy config.' % self.socket_file)
-                return
+    def __init__(self, socket_files=[DEFAULT_SOCKET]):
+        self.sockets = socket_files
+        # for socket in socket_files:
+        #     self.sockets[socket] = None
 
     def communicate(self, command):
-        '''Get response from single command.
+        '''
+        Get response from single command.
 
         Args:
             command: string command to send to haproxy stat socket
@@ -80,22 +72,30 @@ class HAProxySocket(object):
         '''
         if not command.endswith('\n'):
             command += '\n'
-        stat_sock = self.connect()
-        if stat_sock is None:
-            return ''
-        stat_sock.sendall(command)
-        result_buf = StringIO.StringIO()
-        buf = stat_sock.recv(RECV_SIZE)
-        while buf:
-            result_buf.write(buf)
-            buf = stat_sock.recv(RECV_SIZE)
 
-        stat_sock.close()
-        return result_buf.getvalue()
+        outputs = []
+        for socket in self.sockets:
+            conn = HAProxySocket._connect(socket)
+            if conn is None:
+                collectd.warning('unable to connect to {}'.format(socket))
+                continue
+
+            conn.sendall(command)
+            result_buf = str()
+            buf = conn.recv(RECV_SIZE)
+            while buf:
+                result_buf += str(buf.decode('utf-8'))
+                buf = conn.recv(RECV_SIZE)
+
+            conn.close()
+            outputs.append(result_buf)
+
+        return outputs
 
     # This method isn't nice but there's no other way to parse the output of show resolvers from haproxy
     def get_resolvers(self):
-        ''' Gets the resolver config and returns a map of nameserver -> nameservermetrics
+        '''
+        Gets the resolver config and return s a map of nameserver -> nameservermetrics
         The output from the socket looks like
         Resolvers section mydns
          nameserver dns1:
@@ -107,73 +107,143 @@ class HAProxySocket(object):
         e.g. '{dns1': {'sent': '8', ...}, ...}
         '''
         result = {}
-        output = self.communicate('show resolvers').splitlines()
+        sockets_stats = self.communicate('show resolvers')
         nameserver = ''
 
-        # check if command is supported
-        if len(output) > 0 and output[0].lower().startswith('unknown command'):
-            return result
-
-        for line in output:
-            try:
-                if 'Resolvers section' in line or line.strip() == '':
-                    continue
-                elif 'nameserver' in line:
-                    _, unsanitied_nameserver = line.strip().split(' ', 1)
-                    # remove trailing ':'
-                    nameserver = unsanitied_nameserver[:-1]
-                    result[nameserver] = {}
-                else:
-                    key, val = line.split(':', 1)
-                    current_nameserver_stats = result[nameserver]
-                    current_nameserver_stats[key.strip()] = val.strip()
-                    result[nameserver] = current_nameserver_stats
-            except ValueError:
+        for stats in sockets_stats:
+            lines = stats.splitlines()
+            # check if command is supported
+            if any(lines) and lines[0].lower().startswith('unknown command'):
                 continue
+
+            for line in lines:
+                try:
+                    if 'Resolvers section' in line or line.strip() == '':
+                        continue
+                    elif 'nameserver' in line:
+                        _, unsanitied_nameserver = line.strip().split(' ', 1)
+                        # remove trailing ':'
+                        nameserver = unsanitied_nameserver[:-1]
+                        result[nameserver] = {}
+                    else:
+                        key, val = line.split(':', 1)
+                        current_nameserver_stats = result[nameserver]
+                        current_nameserver_stats[key.strip()] = val.strip()
+                        result[nameserver] = current_nameserver_stats
+                except ValueError:
+                    continue
 
         return result
 
     def get_server_info(self):
         result = {}
-        output = self.communicate('show info')
-        for line in output.splitlines():
-            try:
-                key, val = line.split(':', 1)
-            except ValueError:
-                continue
-            result[key.strip()] = val.strip()
+        sockets_stats = self.communicate('show info')
+
+        for stats in sockets_stats:
+            stats_proc = self.get_server_info_proc_num(stats)
+
+            for line in stats.splitlines():
+                try:
+                    key, val = line.split(':', 1)
+                except ValueError:
+                    continue
+                result['{}#{}'.format(key.strip(), stats_proc)] = val.strip()
 
         return result
+
+    def get_server_info_proc_num(self, data):
+        for _, match in enumerate(re.finditer(r'Process_num: ([0-9]+)', data, re.MULTILINE), start=1):
+            for groupNum in range(0, len(match.groups())):
+                groupNum = groupNum + 1
+                return match.group(groupNum).strip()
+        return 'U'
 
     def get_server_stats(self):
-        output = self.communicate('show stat')
-        # sanitize and make a list of lines
-        output = output.lstrip('# ').strip()
-        output = [l.strip(',') for l in output.splitlines()]
-        csvreader = csv.DictReader(output)
-        result = [d.copy() for d in csvreader]
-        return result
+        result = None
+        sockets_stats = self.communicate('show stat')
+        for stat in sockets_stats:
+            # sanitize and make a list of lines
+            output = stat.lstrip('# ').strip()
+            output = [line.strip(',') for line in output.splitlines()]
+            csvreader = csv.DictReader(output)
+            result = [d.copy() for d in csvreader]
+
+        return HAProxySocket._aggregate(result)
+
+    @staticmethod
+    def _aggregate(stats):
+        aggregate = {}
+
+        for stat in stats:
+            aggr_key = _format_plugin_instance(stat)
+            if aggr_key not in aggregate:
+                aggregate[aggr_key] = {}
+
+            for key in set(aggregate[aggr_key]) | set(stat):
+                val_left = aggregate[aggr_key].get(key, 0)
+                val_right = stat.get(key, '0')
+                if key in METRICS_AGGR_PULL:
+                    # collectd.warning(
+                    #     "[{}] pulling in {}".format(aggr_key, key))
+                    aggregate[aggr_key][key] = val_right
+                elif key in METRICS_AGGR_SUM:
+                    # collectd.warning(
+                    #     "[{}] summing {}".format(aggr_key, key))
+                    if not val_right or not val_right.isdigit():
+                        # collectd.warning(
+                        #     "[{}] right value not suitable {}".format(aggr_key, val_right))
+                        continue
+                    aggregate[aggr_key][key] = val_left + int(val_right)
+                elif key in METRICS_AGGR_AVG:
+                    # collectd.warning(
+                    #     "[{}] averaging {}".format(aggr_key, key))
+                    pass
+                else:
+                    # collectd.warning(
+                    #     "[{}] dropping {}".format(aggr_key, key))
+                    pass
+
+        return [val for key, val in aggregate.iteritems()]
+
+    @staticmethod
+    def _connect(payload):
+        if payload.startswith('file://') or payload.startswith('unix://') or payload.startswith('/'):
+            fname = payload.replace('file://', '').replace('unix://', '')
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.connect(fname)
+            return sock
+        elif payload.startswith('tcp://'):
+            host, port = payload.replace('tcp://', '').split(':')
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((host, int(port)))
+            return sock
+        elif payload.startswith('http://'):
+            pass
+
+        collectd.warning('{} socket type not recognized'.format(payload))
+        return None
 
 
 def get_stats(module_config):
-    """
+    '''
         Makes two calls to haproxy to fetch server info and server stats.
         Returns the dict containing metric name as the key and a tuple of metric value and the dict of dimensions if any
-    """
-    if module_config['socket'] is None:
+    '''
+    if 'sockets' not in module_config or len(module_config['sockets']) == 0:
         collectd.error(
-            "Socket configuration parameter is undefined. Couldn't get the stats")
+            "At least a socket must be given as a configuration parameter")
         return
+
     stats = []
-    haproxy = HAProxySocket(module_config['socket'])
+    haproxy = HAProxySocket(module_config['sockets'])
 
     try:
         server_info = haproxy.get_server_info()
         server_stats = haproxy.get_server_stats()
         resolver_stats = haproxy.get_resolvers()
-    except socket.error:
+    except socket.error as e:
         collectd.warning(
-            'status err Unable to connect to HAProxy socket at %s' % module_config['socket'])
+            'status err Unable to connect to the HAProxy socket: {}'.format(str(e)))
         return stats
 
     # server wide stats
@@ -200,6 +270,7 @@ def get_stats(module_config):
                     (metricname, int(val), {'is_resolver': True, 'nameserver': resolver}))
             except (TypeError, ValueError):
                 pass
+
     return stats
 
 
@@ -218,14 +289,14 @@ def is_resolver_metric(statdict):
 
 
 def config(config_values):
-    """
+    '''
     A callback method that  loads information from the HaProxy collectd plugin config file.
     Args:
     config_values (collectd.Config): Object containing config values
-    """
+    '''
 
     module_config = {}
-    socket = DEFAULT_SOCKET
+    sockets = []
     proxy_monitors = []
     excluded_metrics = set()
     enhanced_metrics = False
@@ -236,8 +307,8 @@ def config(config_values):
     for node in config_values.children:
         if node.key == "ProxyMonitor" and node.values[0]:
             proxy_monitors.extend(node.values)
-        elif node.key == "Socket" and node.values[0]:
-            socket = node.values[0]
+        elif node.key == "Socket" and node.values:
+            sockets.extend(node.values)
         elif node.key == "Interval" and node.values[0]:
             interval = node.values[0]
         elif node.key == "Testing" and node.values[0]:
@@ -251,11 +322,13 @@ def config(config_values):
         else:
             collectd.warning('Unknown config key: %s' % node.key)
 
+    if not sockets:
+        sockets += DEFAULT_SOCKET
     if not proxy_monitors:
         proxy_monitors += DEFAULT_PROXY_MONITORS
 
     module_config = {
-        'socket': socket,
+        'sockets': sockets,
         'proxy_monitors': proxy_monitors,
         'interval': interval,
         'enhanced_metrics': enhanced_metrics,
@@ -263,18 +336,19 @@ def config(config_values):
         'custom_dimensions': custom_dimensions,
         'testing': testing,
     }
-    proxys = "_".join(proxy_monitors)
 
     if testing:
         return module_config
 
+    # pass interval only if not None
     interval_kwarg = {}
     if interval:
         interval_kwarg['interval'] = interval
-    collectd.register_read(collect_metrics, data=module_config,
-                           name='node_' +
-                           module_config['socket'] + '_' + proxys,
-                           **interval_kwarg)
+
+    collectd.register_read(
+        collect_metrics, data=module_config,
+        name='node_{}_{}'.format('_'.join(sockets), '_'.join(proxy_monitors)),
+        **interval_kwarg)
 
 
 def _format_plugin_instance(dimensions):
@@ -287,11 +361,11 @@ def _format_plugin_instance(dimensions):
 
 
 def _get_proxy_type(type_id):
-    """
+    '''
         Return human readable proxy type
         Args:
         type_id: 0=frontend, 1=backend, 2=server, 3=socket/listener
-    """
+    '''
     proxy_types = {
         0: 'frontend',
         1: 'backend',
@@ -329,9 +403,9 @@ def submit_metrics(metric_datapoint):
 
 def collect_metrics(module_config):
     collectd.debug('beginning collect_metrics')
-    """
+    '''
         A callback method that gets metrics from HAProxy and records them to collectd.
-    """
+    '''
 
     info = get_stats(module_config)
 
